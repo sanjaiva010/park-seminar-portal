@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff — Seminar Hall Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <div class="sidebar no-print">
+    <div class="brand">
+      <div class="mark">PS</div>
+      <h1>PARK Institutions</h1>
+      <span>Seminar Hall Booking</span>
+    </div>
+    <nav>
+      <a href="#" class="tab-link active" data-tab="new">New Booking</a>
+      <a href="#" class="tab-link" data-tab="mine">My Bookings</a>
+      <button onclick="logout()">Log out</button>
+    </nav>
+    <div class="who">
+      <strong id="whoName">Staff</strong>
+      <span id="whoDept"></span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- NEW BOOKING -->
+    <section id="tab-new">
+      <div class="topbar">
+        <div><h1>Book a seminar hall</h1><p>Fill in the event details — this goes straight to your HoD for approval.</p></div>
+      </div>
+
+      <form id="bookingForm">
+        <div class="card">
+          <div class="card-title">Event details</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Department / General</label>
+              <input type="text" id="department" required placeholder="e.g. CSE, ECE, General">
+            </div>
+            <div class="field">
+              <label>Function name</label>
+              <input type="text" id="function_name" required placeholder="e.g. Guest Lecture on AI">
+            </div>
+            <div class="field">
+              <label>Chief guest (if any)</label>
+              <input type="text" id="chief_guest" placeholder="Name & designation">
+            </div>
+            <div class="field">
+              <label>Your mobile number</label>
+              <input type="tel" id="booking_staff_mobile" required placeholder="10-digit mobile">
+            </div>
+            <div class="field">
+              <label>Hall required</label>
+              <select id="hall_id" required><option value="">Select a hall</option></select>
+            </div>
+            <div class="field">
+              <label>Students attending (approx.)</label>
+              <input type="number" id="students_count" min="1" required placeholder="e.g. 120">
+            </div>
+            <div class="field">
+              <label>Staff incharge — name</label>
+              <input type="text" id="staff_incharge_name" required>
+            </div>
+            <div class="field">
+              <label>Staff incharge — mobile</label>
+              <input type="tel" id="staff_incharge_mobile" required>
+            </div>
+            <div class="field">
+              <label>Student incharge — name</label>
+              <input type="text" id="student_incharge_name">
+            </div>
+            <div class="field">
+              <label>Student incharge — mobile</label>
+              <input type="tel" id="student_incharge_mobile">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Food arrangement</label>
+              <textarea id="food_arrangement" placeholder="e.g. Lunch for 30 guests at the guest house, or 'Not required'"></textarea>
+            </div>
+            <div class="field">
+              <label>Snacks / refreshment arrangement</label>
+              <textarea id="snacks_arrangement" placeholder="e.g. Tea & snacks for 50 in the green room, or 'Not required'"></textarea>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+              <input type="checkbox" id="is_emergency" style="width:auto;"> This is an emergency / short-notice booking
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Date & periods</span>
+            <div class="role-tabs" style="margin:0; width:220px;" id="modeTabs">
+              <button type="button" class="active" data-mode="single">Single day</button>
+              <button type="button" data-mode="multi">Multiple days</button>
+            </div>
+          </div>
+          <div id="dayBlocks"></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="addDayBtn" style="display:none;">+ Add another day</button>
+          <p style="font-size:12.5px; margin-top:10px;">Periods already booked for the selected hall & date appear greyed out.</p>
+        </div>
+
+        <div class="help-error" id="bookingFormError"></div>
+        <button type="submit" class="btn btn-primary" id="submitBtn">Submit for HoD approval</button>
+      </form>
+    </section>
+
+    <!-- MY BOOKINGS -->
+    <section id="tab-mine" style="display:none;">
+      <div class="topbar"><div><h1>My Bookings</h1><p>Status of everything you've requested</p></div></div>
+      <div id="myBookingsList"></div>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+const me = requireRole("staff");
+if (me) {
+  document.getElementById("whoName").textContent = me.name;
+  document.getElementById("whoDept").textContent = me.department || "";
+  document.getElementById("department").value = me.department || "";
+}
+
+document.querySelectorAll(".tab-link").forEach(link => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.querySelectorAll(".tab-link").forEach(l => l.classList.remove("active"));
+    link.classList.add("active");
+    document.querySelectorAll("[id^='tab-']").forEach(s => s.style.display = "none");
+    document.getElementById("tab-" + link.dataset.tab).style.display = "block";
+    if (link.dataset.tab === "mine") loadMyBookings();
+  });
+});
+
+// ---------- halls dropdown ----------
+let HALLS = [];
+async function loadHallOptions() {
+  const { data } = await supabaseClient.from("halls").select("*").order("sort_order");
+  HALLS = data || [];
+  const sel = document.getElementById("hall_id");
+  HALLS.forEach(h => {
+    const opt = document.createElement("option");
+    opt.value = h.id;
+    opt.textContent = `${h.name} — capacity ${h.capacity}`;
+    sel.appendChild(opt);
+  });
+}
+loadHallOptions();
+
+// ---------- day blocks ----------
+let dayBlockCount = 0;
+let mode = "single";
+
+function newDayBlock() {
+  dayBlockCount++;
+  const id = "day_" + dayBlockCount;
+  const wrap = document.createElement("div");
+  wrap.className = "day-block";
+  wrap.dataset.blockId = id;
+  wrap.innerHTML = `
+    <div class="day-head">
+      <div class="field" style="flex:1; margin-bottom:8px;">
+        <label>Date</label>
+        <input type="date" class="day-date" required>
+      </div>
+      ${mode === "multi" ? `<button type="button" class="btn btn-sm btn-danger removeDayBtn" style="margin-left:10px; align-self:flex-start;">Remove</button>` : ""}
+    </div>
+    <div class="periods-grid"></div>
+  `;
+  const grid = wrap.querySelector(".periods-grid");
+  PERIODS.forEach(p => {
+    const chip = document.createElement("label");
+    chip.className = "period-chip";
+    chip.innerHTML = `<input type="checkbox" class="period-cb" value="${p.id}"><span class="lbl"><b>Period ${p.id}</b><span>${p.label}</span></span>`;
+    grid.appendChild(chip);
+    chip.querySelector("input").addEventListener("change", (e) => {
+      chip.classList.toggle("checked", e.target.checked);
+    });
+  });
+  wrap.querySelector(".day-date").addEventListener("change", () => refreshTakenSlots(wrap));
+  const removeBtn = wrap.querySelector(".removeDayBtn");
+  if (removeBtn) removeBtn.addEventListener("click", () => {
+    wrap.remove();
+    document.getElementById("addDayBtn").style.display = document.querySelectorAll(".day-block").length < 14 ? "inline-flex" : "none";
+  });
+  return wrap;
+}
+
+function resetDayBlocks() {
+  const container = document.getElementById("dayBlocks");
+  container.innerHTML = "";
+  dayBlockCount = 0;
+  container.appendChild(newDayBlock());
+  document.getElementById("addDayBtn").style.display = mode === "multi" ? "inline-flex" : "none";
+}
+resetDayBlocks();
+
+document.querySelectorAll("#modeTabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#modeTabs button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    mode = btn.dataset.mode;
+    resetDayBlocks();
+  });
+});
+document.getElementById("addDayBtn").addEventListener("click", () => {
+  if (document.querySelectorAll(".day-block").length >= 14) return;
+  document.getElementById("dayBlocks").appendChild(newDayBlock());
+});
+
+// grey out periods already taken for the chosen hall + date
+async function refreshTakenSlots(blockEl) {
+  const hallId = document.getElementById("hall_id").value;
+  const date = blockEl.querySelector(".day-date").value;
+  const chips = blockEl.querySelectorAll(".period-chip");
+  chips.forEach(c => { c.classList.remove("taken"); c.querySelector("input").disabled = false; });
+  if (!hallId || !date) return;
+
+  const { data: slots } = await supabaseClient
+    .from("booking_slots")
+    .select("period_id, booking_id, bookings!inner(status)")
+    .eq("hall_id", hallId)
+    .eq("booking_date", date)
+    .in("bookings.status", ["pending", "approved"]);
+
+  const takenPeriods = new Set((slots || []).map(s => s.period_id));
+  chips.forEach(c => {
+    const input = c.querySelector("input");
+    if (takenPeriods.has(Number(input.value))) {
+      c.classList.add("taken");
+      input.disabled = true;
+      input.checked = false;
+      c.classList.remove("checked");
+    }
+  });
+}
+document.getElementById("hall_id").addEventListener("change", () => {
+  document.querySelectorAll(".day-block").forEach(refreshTakenSlots);
+});
+
+// ---------- submit ----------
+document.getElementById("bookingForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById("bookingFormError");
+  const btn = document.getElementById("submitBtn");
+  errEl.style.display = "none";
+
+  const blocks = [...document.querySelectorAll(".day-block")];
+  const dateEntries = [];
+  for (const block of blocks) {
+    const date = block.querySelector(".day-date").value;
+    const periods = [...block.querySelectorAll(".period-cb:checked")].map(cb => Number(cb.value));
+    if (!date) { errEl.textContent = "Please pick a date for every day block."; errEl.style.display = "block"; return; }
+    if (periods.length === 0) { errEl.textContent = `Please select at least one period for ${fmtDate(date)}.`; errEl.style.display = "block"; return; }
+    dateEntries.push({ date, periods });
+  }
+
+  btn.disabled = true; btn.textContent = "Submitting...";
+
+  const payload = {
+    hall_id: Number(document.getElementById("hall_id").value),
+    department: document.getElementById("department").value.trim(),
+    function_name: document.getElementById("function_name").value.trim(),
+    chief_guest: document.getElementById("chief_guest").value.trim(),
+    booking_staff_mobile: document.getElementById("booking_staff_mobile").value.trim(),
+    students_count: Number(document.getElementById("students_count").value),
+    staff_incharge_name: document.getElementById("staff_incharge_name").value.trim(),
+    staff_incharge_mobile: document.getElementById("staff_incharge_mobile").value.trim(),
+    student_incharge_name: document.getElementById("student_incharge_name").value.trim(),
+    student_incharge_mobile: document.getElementById("student_incharge_mobile").value.trim(),
+    food_arrangement: document.getElementById("food_arrangement").value.trim() || "Not required",
+    snacks_arrangement: document.getElementById("snacks_arrangement").value.trim() || "Not required",
+    is_emergency: document.getElementById("is_emergency").checked,
+    status: "pending",
+    created_by: me.id,
+    created_by_name: me.name
+  };
+
+  try {
+    const { data: booking, error } = await supabaseClient.from("bookings").insert(payload).select().single();
+    if (error) throw error;
+
+    const slotRows = [];
+    dateEntries.forEach(entry => {
+      entry.periods.forEach(pid => {
+        slotRows.push({ booking_id: booking.id, hall_id: payload.hall_id, booking_date: entry.date, period_id: pid });
+      });
+    });
+    const { error: slotErr } = await supabaseClient.from("booking_slots").insert(slotRows);
+    if (slotErr) throw slotErr;
+
+    toast("Booking submitted! Your HoD will review it next.");
+    document.getElementById("bookingForm").reset();
+    document.getElementById("department").value = me.department || "";
+    resetDayBlocks();
+  } catch (err) {
+    errEl.textContent = err.message && err.message.includes("duplicate") ? "One of the selected periods was just taken by another booking — please refresh and pick a different slot." : "Could not submit the booking. Please try again.";
+    errEl.style.display = "block";
+  }
+  btn.disabled = false; btn.textContent = "Submit for HoD approval";
+});
+
+// ---------- my bookings ----------
+async function loadMyBookings() {
+  const { data: bookings } = await supabaseClient.from("bookings").select("*").eq("created_by", me.id).order("created_at", { ascending: false });
+  const { data: slots } = await supabaseClient.from("booking_slots").select("*");
+  const container = document.getElementById("myBookingsList");
+  if (!bookings || bookings.length === 0) {
+    container.innerHTML = `<div class="card"><div class="empty">You haven't made any bookings yet.</div></div>`;
+    return;
+  }
+  container.innerHTML = bookings.map(b => {
+    const hall = HALLS.find(h => h.id === b.hall_id);
+    const mySlots = (slots || []).filter(s => s.booking_id === b.id);
+    const byDate = {};
+    mySlots.forEach(s => { (byDate[s.booking_date] = byDate[s.booking_date] || []).push(s.period_id); });
+    const dateLines = Object.keys(byDate).sort().map(d => `${fmtDate(d)} — Periods ${byDate[d].sort((a,b)=>a-b).join(", ")}`).join("<br>");
+    return `<div class="card">
+      <div class="card-title"><span>${b.function_name}</span><span class="pill pill-${b.status}">${b.status}</span></div>
+      <p>${hall ? hall.name : ""} · ${b.department} · ${b.students_count} students</p>
+      <p style="font-size:12.5px;">${dateLines}</p>
+      ${b.hod_remarks ? `<p style="font-size:12.5px; color:var(--purple-700);"><strong>HoD remarks:</strong> ${b.hod_remarks}</p>` : ""}
+      ${b.status === 'approved' ? `<a class="btn btn-sm btn-ghost" href="print.html?id=${b.id}" target="_blank">View / print approval sheet</a>` : ""}
+    </div>`;
+  }).join("");
+}
+</script>
+</body>
+</html>
