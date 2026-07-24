@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PARK Institutions — Seminar Hall Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="auth-shell">
+  <div class="login-card">
+    <div class="mark">PS</div>
+    <h1>Seminar Hall Booking</h1>
+    <p class="sub">PARK Institutions — sign in to continue</p>
+
+    <div class="role-tabs" id="roleTabs">
+      <button class="active" data-role="staff">Staff</button>
+      <button data-role="hod">HoD</button>
+      <button data-role="super_admin">Super Admin</button>
+    </div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="username" autocomplete="username" required placeholder="e.g. cse.staff1">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" autocomplete="current-password" required placeholder="••••••••">
+      </div>
+      <div class="help-error" id="loginError"></div>
+      <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Sign in</button>
+    </form>
+
+    <p style="margin-top:18px; font-size:12px; text-align:center; color:var(--text-faint);">
+      Staff and HoD logins are created by the Super Admin.
+    </p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  let selectedRole = "staff";
+  const roleTargets = { staff: "staff.html", hod: "hod.html", super_admin: "super-admin.html" };
+
+  document.querySelectorAll("#roleTabs button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#roleTabs button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      selectedRole = btn.dataset.role;
+      document.getElementById("loginError").style.display = "none";
+    });
+  });
+
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+    const errEl = document.getElementById("loginError");
+    const btn = document.getElementById("loginBtn");
+    errEl.style.display = "none";
+    btn.disabled = true;
+    btn.textContent = "Signing in...";
+    try {
+      const res = await login(username, password, selectedRole);
+      if (!res.ok) {
+        errEl.textContent = res.message;
+        errEl.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+        return;
+      }
+      window.location.href = roleTargets[selectedRole];
+    } catch (err) {
+      errEl.textContent = "Could not connect. Check your internet connection and try again.";
+      errEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Sign in";
+    }
+  });
+</script>
+</body>
+</html>

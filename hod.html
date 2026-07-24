@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HoD — Seminar Hall Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <div class="sidebar no-print">
+    <div class="brand">
+      <div class="mark">PS</div>
+      <h1>PARK Institutions</h1>
+      <span>Seminar Hall Booking</span>
+    </div>
+    <nav>
+      <a href="#" class="tab-link active" data-tab="pending">Pending Approval</a>
+      <a href="#" class="tab-link" data-tab="all">All Requests</a>
+      <button onclick="logout()">Log out</button>
+    </nav>
+    <div class="who">
+      <strong id="whoName">HoD</strong>
+      <span id="whoDept"></span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <section id="tab-pending">
+      <div class="topbar">
+        <div><h1>Pending approval</h1><p>Requests waiting for your decision — <span id="deptLabel"></span></p></div>
+      </div>
+      <div id="pendingList"></div>
+    </section>
+
+    <section id="tab-all" style="display:none;">
+      <div class="topbar"><div><h1>All requests</h1><p>Full history for your department</p></div></div>
+      <div id="allList"></div>
+    </section>
+
+  </div>
+</div>
+
+<!-- Decision modal -->
+<div class="modal-backdrop no-print" id="decisionModal">
+  <div class="modal">
+    <h3 id="decisionTitle" style="margin-bottom:14px;">Review booking</h3>
+    <div id="decisionSummary" style="font-size:13.5px; color:var(--text-muted); margin-bottom:14px;"></div>
+    <div class="field">
+      <label>Remarks (visible to the requester)</label>
+      <textarea id="decisionRemarks" placeholder="Optional note"></textarea>
+    </div>
+
+    <button type="button" class="btn btn-ghost btn-sm" id="editToggleBtn" style="margin-bottom:10px;">✏️ Edit booking details</button>
+    <div id="editFields" style="display:none;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Function name</label>
+          <input type="text" id="edit_function_name">
+        </div>
+        <div class="field">
+          <label>Chief guest</label>
+          <input type="text" id="edit_chief_guest">
+        </div>
+        <div class="field">
+          <label>Staff incharge name</label>
+          <input type="text" id="edit_staff_incharge_name">
+        </div>
+        <div class="field">
+          <label>Staff incharge mobile</label>
+          <input type="tel" id="edit_staff_incharge_mobile" maxlength="10">
+        </div>
+        <div class="field">
+          <label>Student incharge name</label>
+          <input type="text" id="edit_student_incharge_name">
+        </div>
+        <div class="field">
+          <label>Student incharge mobile</label>
+          <input type="tel" id="edit_student_incharge_mobile" maxlength="10">
+        </div>
+        <div class="field">
+          <label>Hostellers</label>
+          <input type="number" id="edit_hostel_count" min="0">
+        </div>
+        <div class="field">
+          <label>Day scholars</label>
+          <input type="number" id="edit_dayscholar_count" min="0">
+        </div>
+      </div>
+      <div class="field">
+        <label>Special requirements</label>
+        <textarea id="edit_special_requirements"></textarea>
+      </div>
+    </div>
+
+    <div id="alterFields" style="display:none;">
+      <p style="font-size:12.5px; color:var(--text-faint); margin-bottom:10px;">Altering moves this booking into a single hall/date/periods below (replaces whatever was originally requested).</p>
+      <div class="grid-2">
+        <div class="field">
+          <label>New hall</label>
+          <select id="alterHall"></select>
+        </div>
+        <div class="field">
+          <label>New date</label>
+          <input type="date" id="alterDate">
+        </div>
+      </div>
+      <div class="field">
+        <label>Students attending</label>
+        <input type="number" id="alterStudents" min="1">
+      </div>
+      <div class="field">
+        <label>New periods</label>
+        <div class="periods-grid" id="alterPeriods"></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+      <button type="button" class="btn btn-ghost" style="flex:1;" onclick="closeDecisionModal()">Cancel</button>
+      <button type="button" class="btn btn-danger" id="rejectBtn" style="flex:1;">Reject</button>
+      <button type="button" class="btn btn-ghost" id="alterToggleBtn" style="flex:1;">Alter & approve</button>
+      <button type="button" class="btn btn-success" id="approveBtn" style="flex:1;">Approve</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+const me = requireRole("hod");
+let HALLS = [];
+let currentBookingId = null;
+let showAlterFields = false;
+
+if (me) {
+  document.getElementById("whoName").textContent = me.name;
+  document.getElementById("whoDept").textContent = "HoD, " + (me.department || "");
+  document.getElementById("deptLabel").textContent = me.department || "";
+}
+
+document.querySelectorAll(".tab-link").forEach(link => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.querySelectorAll(".tab-link").forEach(l => l.classList.remove("active"));
+    link.classList.add("active");
+    document.querySelectorAll("[id^='tab-']").forEach(s => s.style.display = "none");
+    document.getElementById("tab-" + link.dataset.tab).style.display = "block";
+    if (link.dataset.tab === "pending") loadPending();
+    if (link.dataset.tab === "all") loadAll();
+  });
+});
+
+async function loadHalls() {
+  const { data } = await supabaseClient.from("halls").select("*").order("sort_order");
+  HALLS = data || [];
+  const sel = document.getElementById("alterHall");
+  sel.innerHTML = HALLS.map(h => `<option value="${h.id}">${h.name} — cap ${h.capacity}</option>`).join("");
+  document.getElementById("alterPeriods").innerHTML = PERIODS.map(p => `
+    <label class="period-chip"><input type="checkbox" class="alter-period-cb" value="${p.id}"><span class="lbl"><b>Period ${p.id}</b><span>${p.label}</span></span></label>
+  `).join("");
+  document.querySelectorAll(".alter-period-cb").forEach(cb => cb.addEventListener("change", (e) => {
+    e.target.closest(".period-chip").classList.toggle("checked", e.target.checked);
+  }));
+}
+loadHalls();
+
+function bookingCard(b, hallLines, dateLines, editable) {
+  return `<div class="card">
+    <div class="card-title"><span>${b.function_name}${b.is_emergency ? ' <span class="pill pill-altered">emergency</span>' : ''}</span><span class="pill pill-${b.status}">${b.status}</span></div>
+    <div class="grid-2" style="font-size:13.5px;">
+      <div>
+        <p><strong>Department:</strong> ${b.department}</p>
+        <p><strong>Hall(s):</strong> ${hallLines || "-"}</p>
+        <p><strong>Chief guest:</strong> ${b.chief_guest || "-"}</p>
+        <p><strong>Total students:</strong> ${b.students_count}</p>
+      </div>
+      <div>
+        <p><strong>Staff incharge:</strong> ${b.staff_incharge_name} (${b.staff_incharge_mobile})</p>
+        <p><strong>Student incharge:</strong> ${b.student_incharge_name || "-"} ${b.student_incharge_mobile ? "(" + b.student_incharge_mobile + ")" : ""}</p>
+        <p><strong>Requested by:</strong> ${b.created_by_name} (${b.booking_staff_mobile})</p>
+      </div>
+    </div>
+    <p style="font-size:13.5px;"><strong>Dates & periods:</strong><br>${dateLines}</p>
+    <p style="font-size:13.5px;"><strong>Hostellers:</strong> ${b.hostel_count ?? "-"} &nbsp; <strong>Day scholars:</strong> ${b.dayscholar_count ?? "-"} ${(b.hostel_boys != null || b.hostel_girls != null) ? `&nbsp; (Boys: ${b.hostel_boys ?? "-"}, Girls: ${b.hostel_girls ?? "-"})` : ""}</p>
+    <p style="font-size:13.5px;"><strong>Food required:</strong> ${b.food_required ? "Yes" : "No"} &nbsp; <strong>Snacks required:</strong> ${b.snacks_required ? "Yes" : "No"}</p>
+    ${b.other_faculty_required ? `<p style="font-size:13.5px;"><strong>Other faculty required:</strong> ${b.other_faculty_details || "-"}</p>` : ""}
+    ${b.special_requirements ? `<p style="font-size:13.5px;"><strong>Special requirements:</strong> ${b.special_requirements}</p>` : ""}
+    ${b.hod_remarks ? `<p style="font-size:13px; color:var(--purple-700);"><strong>Remarks:</strong> ${b.hod_remarks}</p>` : ""}
+    <div style="display:flex; gap:10px; margin-top:12px;">
+      ${editable ? `<button class="btn btn-primary btn-sm" onclick="openDecisionModal('${b.id}')">Review</button>` : ""}
+      ${b.status === 'approved' ? `<a class="btn btn-sm btn-ghost" href="print.html?id=${b.id}" target="_blank">Print approval sheet</a>` : ""}
+    </div>
+  </div>`;
+}
+
+async function fetchDeptBookings(statuses) {
+  let q = supabaseClient.from("bookings").select("*").eq("department", me.department).order("created_at", { ascending: false });
+  if (statuses) q = q.in("status", statuses);
+  const { data: bookings } = await q;
+  const { data: slots } = await supabaseClient.from("booking_slots").select("*");
+  const { data: bhalls } = await supabaseClient.from("booking_halls").select("*");
+  return { bookings: bookings || [], slots: slots || [], bhalls: bhalls || [] };
+}
+
+function hallLinesFor(bookingId, bhalls) {
+  return bhalls.filter(h => h.booking_id === bookingId)
+    .map(h => { const hall = HALLS.find(x => x.id === h.hall_id); return `${hall ? hall.name : "Hall"} (${h.students_count})`; })
+    .join(", ");
+}
+
+function groupDates(bookingId, slots) {
+  const byDate = {};
+  slots.filter(s => s.booking_id === bookingId).forEach(s => (byDate[s.booking_date] = byDate[s.booking_date] || []).push(s.period_id));
+  return Object.keys(byDate).sort().map(d => `${fmtDate(d)} — Periods ${byDate[d].sort((a,b)=>a-b).join(", ")}`).join("<br>");
+}
+
+async function loadPending() {
+  const { bookings, slots, bhalls } = await fetchDeptBookings(["pending"]);
+  const container = document.getElementById("pendingList");
+  if (bookings.length === 0) { container.innerHTML = `<div class="card"><div class="empty">No pending requests right now.</div></div>`; return; }
+  container.innerHTML = bookings.map(b => bookingCard(b, hallLinesFor(b.id, bhalls), groupDates(b.id, slots), true)).join("");
+}
+
+async function loadAll() {
+  const { bookings, slots, bhalls } = await fetchDeptBookings(null);
+  const container = document.getElementById("allList");
+  if (bookings.length === 0) { container.innerHTML = `<div class="card"><div class="empty">No requests yet.</div></div>`; return; }
+  container.innerHTML = bookings.map(b => bookingCard(b, hallLinesFor(b.id, bhalls), groupDates(b.id, slots), b.status === "pending")).join("");
+}
+
+// ---------- decision modal ----------
+async function openDecisionModal(id) {
+  currentBookingId = id;
+  showAlterFields = false;
+  document.getElementById("alterFields").style.display = "none";
+  document.getElementById("editFields").style.display = "none";
+  showEditFields = false;
+  document.getElementById("decisionRemarks").value = "";
+  const { data: b } = await supabaseClient.from("bookings").select("*").eq("id", id).single();
+  const { data: bhalls } = await supabaseClient.from("booking_halls").select("*").eq("booking_id", id);
+  const hallLines = (bhalls || []).map(h => { const hall = HALLS.find(x => x.id === h.hall_id); return hall ? hall.name : "Hall"; }).join(", ");
+  document.getElementById("decisionTitle").textContent = b.function_name;
+  document.getElementById("decisionSummary").innerHTML = `${b.department} · ${hallLines} · ${b.students_count} students total · Requested by ${b.created_by_name}`;
+
+  document.getElementById("edit_function_name").value = b.function_name || "";
+  document.getElementById("edit_chief_guest").value = b.chief_guest || "";
+  document.getElementById("edit_staff_incharge_name").value = b.staff_incharge_name || "";
+  document.getElementById("edit_staff_incharge_mobile").value = b.staff_incharge_mobile || "";
+  document.getElementById("edit_student_incharge_name").value = b.student_incharge_name || "";
+  document.getElementById("edit_student_incharge_mobile").value = b.student_incharge_mobile || "";
+  document.getElementById("edit_hostel_count").value = b.hostel_count ?? "";
+  document.getElementById("edit_dayscholar_count").value = b.dayscholar_count ?? "";
+  document.getElementById("edit_special_requirements").value = b.special_requirements || "";
+
+  document.getElementById("decisionModal").classList.add("show");
+}
+function closeDecisionModal() {
+  document.getElementById("decisionModal").classList.remove("show");
+  currentBookingId = null;
+}
+let showEditFields = false;
+document.getElementById("editToggleBtn").addEventListener("click", () => {
+  showEditFields = !showEditFields;
+  document.getElementById("editFields").style.display = showEditFields ? "block" : "none";
+});
+function collectEdits() {
+  if (!showEditFields) return {};
+  return {
+    function_name: document.getElementById("edit_function_name").value.trim(),
+    chief_guest: document.getElementById("edit_chief_guest").value.trim(),
+    staff_incharge_name: document.getElementById("edit_staff_incharge_name").value.trim(),
+    staff_incharge_mobile: document.getElementById("edit_staff_incharge_mobile").value.trim(),
+    student_incharge_name: document.getElementById("edit_student_incharge_name").value.trim(),
+    student_incharge_mobile: document.getElementById("edit_student_incharge_mobile").value.trim(),
+    hostel_count: Number(document.getElementById("edit_hostel_count").value) || 0,
+    dayscholar_count: Number(document.getElementById("edit_dayscholar_count").value) || 0,
+    special_requirements: document.getElementById("edit_special_requirements").value.trim() || null
+  };
+}
+document.getElementById("alterToggleBtn").addEventListener("click", () => {
+  showAlterFields = !showAlterFields;
+  document.getElementById("alterFields").style.display = showAlterFields ? "block" : "none";
+});
+
+document.getElementById("rejectBtn").addEventListener("click", async () => {
+  const remarks = document.getElementById("decisionRemarks").value.trim();
+  const { error } = await supabaseClient.from("bookings").update({ ...collectEdits(), status: "rejected", hod_remarks: remarks, hod_id: me.id, updated_at: new Date().toISOString() }).eq("id", currentBookingId);
+  if (error) { toast("Could not update booking.", true); return; }
+  toast("Booking rejected.");
+  closeDecisionModal();
+  loadPending();
+});
+
+document.getElementById("approveBtn").addEventListener("click", async () => {
+  const remarks = document.getElementById("decisionRemarks").value.trim();
+  const edits = collectEdits();
+
+  if (showAlterFields) {
+    // Alteration: replace hall/date/periods, then approve
+    const newHall = Number(document.getElementById("alterHall").value);
+    const newDate = document.getElementById("alterDate").value;
+    const newPeriods = [...document.querySelectorAll(".alter-period-cb:checked")].map(cb => Number(cb.value));
+    if (!newDate || newPeriods.length === 0) { toast("Pick a new date and at least one period to alter the booking.", true); return; }
+
+    // check clashes excluding this booking's own slots
+    const { data: clashes } = await supabaseClient
+      .from("booking_slots")
+      .select("period_id, booking_id, bookings!inner(status)")
+      .eq("hall_id", newHall)
+      .eq("booking_date", newDate)
+      .in("bookings.status", ["pending", "approved"])
+      .neq("booking_id", currentBookingId);
+    const taken = new Set((clashes || []).map(c => c.period_id));
+    if (newPeriods.some(p => taken.has(p))) { toast("One of the chosen periods is already booked in that hall — pick another.", true); return; }
+
+    const newStudents = Number(document.getElementById("alterStudents").value) || 0;
+    const hallCap = HALLS.find(h => h.id === newHall)?.capacity || 0;
+    if (newStudents > hallCap) { toast(`Students attending can't exceed this hall's capacity of ${hallCap}.`, true); return; }
+
+    await supabaseClient.from("booking_slots").delete().eq("booking_id", currentBookingId);
+    await supabaseClient.from("booking_slots").insert(newPeriods.map(pid => ({ booking_id: currentBookingId, hall_id: newHall, booking_date: newDate, period_id: pid })));
+    await supabaseClient.from("booking_halls").delete().eq("booking_id", currentBookingId);
+    await supabaseClient.from("booking_halls").insert({ booking_id: currentBookingId, hall_id: newHall, students_count: newStudents || 1 });
+    await supabaseClient.from("bookings").update({
+      hall_id: newHall, students_count: newStudents || 1, status: "approved", hod_remarks: remarks || "Altered by HoD", hod_id: me.id,
+      approved_at: new Date().toISOString(), updated_at: new Date().toISOString()
+    }).eq("id", currentBookingId);
+    toast("Booking altered and approved.");
+  } else {
+    await supabaseClient.from("bookings").update({
+      ...edits, status: "approved", hod_remarks: remarks, hod_id: me.id,
+      approved_at: new Date().toISOString(), updated_at: new Date().toISOString()
+    }).eq("id", currentBookingId);
+    toast("Booking approved.");
+  }
+  closeDecisionModal();
+  loadPending();
+});
+
+subscribeToBookingChanges(() => {
+  const activeTab = document.querySelector(".tab-link.active")?.dataset.tab;
+  if (activeTab === "pending") loadPending();
+  if (activeTab === "all") loadAll();
+});
+
+loadPending();
+</script>
+</body>
+</html>

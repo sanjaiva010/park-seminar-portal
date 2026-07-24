@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Super Admin — Seminar Hall Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .dept-group{margin-bottom:22px;}
+  .dept-head{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    padding:12px 4px; cursor:pointer;
+  }
+  .dept-head h3{margin:0; font-size:15.5px; display:flex; align-items:center; gap:8px;}
+  .dept-stats{display:flex; gap:8px; flex-wrap:wrap;}
+  .dept-stats span{font-size:11.5px; padding:3px 9px; border-radius:99px; background:var(--purple-100); color:var(--purple-700); font-weight:600;}
+  .dept-body{display:none;}
+  .dept-body.open{display:block;}
+  .filters-row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;}
+  .filters-row select, .filters-row input{width:auto; min-width:150px;}
+  .hall-status{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:2px 9px; border-radius:99px; font-weight:600;}
+  .hall-status.active{background:var(--success-bg); color:var(--success);}
+  .hall-status.maintenance{background:var(--warning-bg); color:var(--warning);}
+  .hall-status.disabled{background:#F1F0F4; color:var(--text-faint);}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <div class="sidebar no-print">
+    <div class="brand">
+      <div class="mark">PS</div>
+      <h1>PARK Institutions</h1>
+      <span>Seminar Hall Booking</span>
+    </div>
+    <nav>
+      <a href="#" class="tab-link active" data-tab="overview">Overview</a>
+      <a href="#" class="tab-link" data-tab="users">Manage Logins</a>
+      <a href="#" class="tab-link" data-tab="bookings">All Bookings</a>
+      <a href="#" class="tab-link" data-tab="halls">Halls</a>
+      <button onclick="logout()">Log out</button>
+    </nav>
+    <div class="who">
+      <strong id="whoName">Super Admin</strong>
+      Super Admin
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- OVERVIEW -->
+    <section id="tab-overview">
+      <div class="topbar">
+        <div><h1>Overview</h1><p>Snapshot of the booking system — updates live</p></div>
+      </div>
+      <div class="grid-3" id="statCards"></div>
+      <div class="card">
+        <div class="card-title">Recent bookings</div>
+        <div class="table-wrap"><table id="recentTable"><thead><tr>
+          <th>Function</th><th>Department</th><th>Hall</th><th>Status</th><th>Requested by</th>
+        </tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- USERS -->
+    <section id="tab-users" style="display:none;">
+      <div class="topbar">
+        <div><h1>Manage Logins</h1><p>Create HoD and Staff accounts — give them the username & password shown here.</p></div>
+        <button class="btn btn-primary" onclick="openUserModal()">+ Add login</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table id="usersTable"><thead><tr>
+          <th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>Mobile</th><th>Status</th><th></th>
+        </tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- BOOKINGS -->
+    <section id="tab-bookings" style="display:none;">
+      <div class="topbar">
+        <div><h1>All Bookings</h1><p>Grouped by department — updates live, no need to refresh</p></div>
+      </div>
+      <div class="filters-row">
+        <select id="filterDept"><option value="">All departments</option></select>
+        <select id="filterHall"><option value="">All halls</option></select>
+        <select id="filterStatus">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="altered">Altered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <input type="date" id="filterDate">
+        <button class="btn btn-ghost btn-sm" id="clearFiltersBtn">Clear filters</button>
+      </div>
+      <div id="deptGroups"></div>
+    </section>
+
+    <!-- HALLS -->
+    <section id="tab-halls" style="display:none;">
+      <div class="topbar">
+        <div><h1>Halls</h1><p>Add, edit, disable or put a hall under maintenance</p></div>
+        <button class="btn btn-primary" onclick="openHallModal()">+ Add hall</button>
+      </div>
+      <div class="grid-3" id="hallCards"></div>
+    </section>
+
+  </div>
+</div>
+
+<!-- Add user modal -->
+<div class="modal-backdrop no-print" id="userModal">
+  <div class="modal">
+    <h3 style="margin-bottom:14px;">Add a login</h3>
+    <form id="userForm">
+      <div class="field">
+        <label>Role</label>
+        <select id="u_role" required>
+          <option value="staff">Staff (books halls)</option>
+          <option value="hod">HoD (approves bookings)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Full name</label>
+        <input type="text" id="u_name" required placeholder="e.g. Dr. R. Kumar">
+      </div>
+      <div class="field">
+        <label>Department</label>
+        <input type="text" id="u_dept" required placeholder="e.g. CSE / General / Administration">
+        <small id="deptHint">For HoD: this is the department they approve bookings for. For Staff: their own department.</small>
+      </div>
+      <div class="field">
+        <label>Mobile number</label>
+        <input type="tel" id="u_mobile" placeholder="10-digit mobile">
+      </div>
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="u_username" required placeholder="e.g. cse.hod">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="text" id="u_password" required placeholder="Set a password" value="">
+        <small>Share this username & password with them directly.</small>
+      </div>
+      <div class="help-error" id="userFormError"></div>
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button type="button" class="btn btn-ghost" style="flex:1;" onclick="closeUserModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="flex:1;" id="userSaveBtn">Create login</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Booking review/edit modal -->
+<div class="modal-backdrop no-print" id="bookingModal">
+  <div class="modal">
+    <h3 id="bmTitle" style="margin-bottom:14px;">Booking</h3>
+    <div id="bmSummary" style="font-size:13.5px; color:var(--text-muted); margin-bottom:14px;"></div>
+    <div class="field">
+      <label>Status</label>
+      <select id="bm_status">
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Remarks</label>
+      <textarea id="bm_remarks" placeholder="Optional note"></textarea>
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm" id="bmEditToggleBtn" style="margin-bottom:10px;">✏️ Edit details</button>
+    <div id="bmEditFields" style="display:none;">
+      <div class="grid-2">
+        <div class="field"><label>Department</label><input type="text" id="bm_department"></div>
+        <div class="field"><label>Function name</label><input type="text" id="bm_function_name"></div>
+        <div class="field"><label>Chief guest</label><input type="text" id="bm_chief_guest"></div>
+        <div class="field"><label>Booking staff mobile</label><input type="tel" id="bm_booking_staff_mobile" maxlength="10"></div>
+        <div class="field"><label>Staff incharge name</label><input type="text" id="bm_staff_incharge_name"></div>
+        <div class="field"><label>Staff incharge mobile</label><input type="tel" id="bm_staff_incharge_mobile" maxlength="10"></div>
+        <div class="field"><label>Student incharge name</label><input type="text" id="bm_student_incharge_name"></div>
+        <div class="field"><label>Student incharge mobile</label><input type="tel" id="bm_student_incharge_mobile" maxlength="10"></div>
+        <div class="field"><label>Hostellers</label><input type="number" id="bm_hostel_count" min="0"></div>
+        <div class="field"><label>Day scholars</label><input type="number" id="bm_dayscholar_count" min="0"></div>
+      </div>
+      <div class="field"><label>Special requirements</label><textarea id="bm_special_requirements"></textarea></div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+      <button type="button" class="btn btn-ghost" style="flex:1;" onclick="closeBookingModal()">Cancel</button>
+      <button type="button" class="btn btn-danger" id="bmDeleteBtn" style="flex:1;">Delete</button>
+      <button type="button" class="btn btn-primary" id="bmSaveBtn" style="flex:1;">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hall modal -->
+<div class="modal-backdrop no-print" id="hallModal">
+  <div class="modal">
+    <h3 id="hallModalTitle" style="margin-bottom:14px;">Add hall</h3>
+    <input type="hidden" id="h_id">
+    <div class="field"><label>Hall name</label><input type="text" id="h_name" required placeholder="e.g. Seminar Hall - 1 (TP)"></div>
+    <div class="field"><label>Short code</label><input type="text" id="h_code" required placeholder="e.g. SH1"></div>
+    <div class="field"><label>Capacity</label><input type="number" id="h_capacity" min="1" required></div>
+    <div class="field">
+      <label>Status</label>
+      <select id="h_status">
+        <option value="active">Active — visible to staff for booking</option>
+        <option value="maintenance">Under maintenance — hidden from staff</option>
+        <option value="disabled">Disabled — hidden from staff</option>
+      </select>
+    </div>
+    <div class="help-error" id="hallModalError"></div>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button type="button" class="btn btn-ghost" style="flex:1;" onclick="closeHallModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" style="flex:1;" id="hallSaveBtn">Save hall</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+const me = requireRole("super_admin");
+if (me) document.getElementById("whoName").textContent = me.name;
+let HALLS = [];
+
+// ---------- tabs ----------
+document.querySelectorAll(".tab-link").forEach(link => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.querySelectorAll(".tab-link").forEach(l => l.classList.remove("active"));
+    link.classList.add("active");
+    document.querySelectorAll("[id^='tab-']").forEach(s => s.style.display = "none");
+    document.getElementById("tab-" + link.dataset.tab).style.display = "block";
+    if (link.dataset.tab === "users") loadUsers();
+    if (link.dataset.tab === "bookings") loadAllBookings();
+    if (link.dataset.tab === "halls") loadHalls();
+  });
+});
+
+// ---------- live sync across the whole app ----------
+subscribeToBookingChanges(() => {
+  const activeTab = document.querySelector(".tab-link.active")?.dataset.tab;
+  if (activeTab === "overview") loadOverview();
+  if (activeTab === "bookings") loadAllBookings();
+});
+
+// ---------- overview ----------
+async function loadOverview() {
+  const { data: bookings } = await supabaseClient.from("bookings").select("*").order("created_at", { ascending: false });
+  const list = bookings || [];
+  const pending = list.filter(b => b.status === "pending").length;
+  const approved = list.filter(b => b.status === "approved").length;
+
+  document.getElementById("statCards").innerHTML = `
+    <div class="stat"><div class="n">${list.length}</div><div class="l">Total bookings</div></div>
+    <div class="stat"><div class="n">${pending}</div><div class="l">Pending approval</div></div>
+    <div class="stat"><div class="n">${approved}</div><div class="l">Approved</div></div>
+  `;
+
+  const tbody = document.querySelector("#recentTable tbody");
+  tbody.innerHTML = "";
+  await ensureHalls();
+  const { data: bhalls } = await supabaseClient.from("booking_halls").select("*");
+  list.slice(0, 8).forEach(b => {
+    const hallNames = (bhalls || []).filter(h => h.booking_id === b.id).map(h => HALLS.find(x => x.id === h.hall_id)?.name).filter(Boolean).join(", ");
+    tbody.innerHTML += `<tr>
+      <td>${b.function_name}</td>
+      <td>${b.department}</td>
+      <td>${hallNames || "-"}</td>
+      <td><span class="pill pill-${b.status}">${b.status}</span></td>
+      <td>${b.created_by_name}</td>
+    </tr>`;
+  });
+  if (list.length === 0) tbody.innerHTML = `<tr><td colspan="5" class="empty">No bookings yet</td></tr>`;
+}
+
+async function ensureHalls() {
+  if (HALLS.length) return;
+  const { data } = await supabaseClient.from("halls").select("*").order("sort_order");
+  HALLS = data || [];
+}
+
+// ---------- users ----------
+async function loadUsers() {
+  const { data, error } = await supabaseClient.from("app_users").select("*").neq("role", "super_admin").order("created_at", { ascending: false });
+  const tbody = document.querySelector("#usersTable tbody");
+  tbody.innerHTML = "";
+  if (error) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Could not load logins.</td></tr>`; return; }
+  if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="empty">No logins created yet. Click "Add login" to create the first HoD or Staff account.</td></tr>`; return; }
+  data.forEach(u => {
+    tbody.innerHTML += `<tr>
+      <td>${u.name}</td>
+      <td>${u.username}</td>
+      <td style="text-transform:capitalize;">${u.role}</td>
+      <td>${u.department || "-"}</td>
+      <td>${u.mobile || "-"}</td>
+      <td><span class="pill ${u.is_active ? 'pill-approved' : 'pill-cancelled'}">${u.is_active ? 'active' : 'disabled'}</span></td>
+      <td><button class="btn btn-sm btn-ghost" onclick="toggleUser('${u.id}', ${u.is_active})">${u.is_active ? 'Disable' : 'Enable'}</button></td>
+    </tr>`;
+  });
+  const depts = [...new Set((data || []).filter(u => u.department).map(u => u.department))].sort();
+  const deptSel = document.getElementById("filterDept");
+  deptSel.innerHTML = `<option value="">All departments</option>` + depts.map(d => `<option value="${d}">${d}</option>`).join("");
+}
+async function toggleUser(id, currentlyActive) {
+  const { error } = await supabaseClient.from("app_users").update({ is_active: !currentlyActive }).eq("id", id);
+  if (error) { toast("Could not update login.", true); return; }
+  toast(currentlyActive ? "Login disabled." : "Login enabled.");
+  loadUsers();
+}
+
+function openUserModal() { document.getElementById("userModal").classList.add("show"); }
+function closeUserModal() {
+  document.getElementById("userModal").classList.remove("show");
+  document.getElementById("userForm").reset();
+  document.getElementById("userFormError").style.display = "none";
+}
+
+document.getElementById("userForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("userSaveBtn");
+  const errEl = document.getElementById("userFormError");
+  errEl.style.display = "none";
+  btn.disabled = true; btn.textContent = "Creating...";
+
+  const role = document.getElementById("u_role").value;
+  const name = document.getElementById("u_name").value.trim();
+  const department = document.getElementById("u_dept").value.trim();
+  const mobile = document.getElementById("u_mobile").value.trim();
+  const username = document.getElementById("u_username").value.trim();
+  const password = document.getElementById("u_password").value;
+
+  try {
+    const password_hash = await sha256Hex(password);
+    const { error } = await supabaseClient.from("app_users").insert({
+      username, password_hash, name, role, department, mobile, is_active: true
+    });
+    if (error) {
+      errEl.textContent = error.message.includes("duplicate") ? "That username is already taken." : error.message;
+      errEl.style.display = "block";
+      btn.disabled = false; btn.textContent = "Create login";
+      return;
+    }
+    toast(`Login created for ${name}. Share username "${username}" and the password with them.`);
+    closeUserModal();
+    loadUsers();
+  } catch (err) {
+    errEl.textContent = "Something went wrong. Try again.";
+    errEl.style.display = "block";
+  }
+  btn.disabled = false; btn.textContent = "Create login";
+});
+
+// ---------- all bookings, grouped by department ----------
+async function loadAllBookings() {
+  await ensureHalls();
+  const hallSel = document.getElementById("filterHall");
+  if (!hallSel.dataset.loaded) {
+    hallSel.innerHTML = `<option value="">All halls</option>` + HALLS.map(h => `<option value="${h.id}">${h.name}</option>`).join("");
+    hallSel.dataset.loaded = "1";
+  }
+
+  const { data: bookings } = await supabaseClient.from("bookings").select("*").order("created_at", { ascending: false });
+  const { data: slots } = await supabaseClient.from("booking_slots").select("*");
+  const { data: bhalls } = await supabaseClient.from("booking_halls").select("*");
+
+  const deptVal = document.getElementById("filterDept").value;
+  const hallVal = document.getElementById("filterHall").value;
+  const statusVal = document.getElementById("filterStatus").value;
+  const dateVal = document.getElementById("filterDate").value;
+
+  let list = bookings || [];
+  if (deptVal) list = list.filter(b => b.department === deptVal);
+  if (statusVal) list = list.filter(b => b.status === statusVal);
+  if (hallVal) {
+    const bookingIdsWithHall = new Set((bhalls || []).filter(h => String(h.hall_id) === hallVal).map(h => h.booking_id));
+    list = list.filter(b => bookingIdsWithHall.has(b.id));
+  }
+  if (dateVal) {
+    const bookingIdsOnDate = new Set((slots || []).filter(s => s.booking_date === dateVal).map(s => s.booking_id));
+    list = list.filter(b => bookingIdsOnDate.has(b.id));
+  }
+
+  const groups = {};
+  list.forEach(b => { (groups[b.department] = groups[b.department] || []).push(b); });
+  const deptNames = Object.keys(groups).sort();
+
+  const container = document.getElementById("deptGroups");
+  if (deptNames.length === 0) { container.innerHTML = `<div class="card"><div class="empty">No bookings match these filters.</div></div>`; return; }
+
+  container.innerHTML = deptNames.map(dept => {
+    const items = groups[dept];
+    const counts = {
+      total: items.length,
+      pending: items.filter(b => b.status === "pending").length,
+      approved: items.filter(b => b.status === "approved").length,
+      rejected: items.filter(b => b.status === "rejected").length
+    };
+    const bodyId = "dept-" + dept.replace(/[^a-zA-Z0-9]/g, "_");
+    return `
+      <div class="dept-group card">
+        <div class="dept-head" onclick="document.getElementById('${bodyId}').classList.toggle('open')">
+          <h3>📂 ${dept}</h3>
+          <div class="dept-stats">
+            <span>${counts.total} total</span>
+            <span>${counts.pending} pending</span>
+            <span>${counts.approved} approved</span>
+            <span>${counts.rejected} rejected</span>
+          </div>
+        </div>
+        <div class="dept-body open" id="${bodyId}">
+          ${items.map(b => bookingRow(b, hallLinesFor(b.id, bhalls || []), groupDates(b.id, slots || []))).join("")}
+        </div>
+      </div>`;
+  }).join("");
+}
+["filterDept", "filterHall", "filterStatus", "filterDate"].forEach(id => document.getElementById(id).addEventListener("change", loadAllBookings));
+document.getElementById("clearFiltersBtn").addEventListener("click", () => {
+  document.getElementById("filterDept").value = "";
+  document.getElementById("filterHall").value = "";
+  document.getElementById("filterStatus").value = "";
+  document.getElementById("filterDate").value = "";
+  loadAllBookings();
+});
+
+function hallLinesFor(bookingId, bhalls) {
+  return bhalls.filter(h => h.booking_id === bookingId)
+    .map(h => { const hall = HALLS.find(x => x.id === h.hall_id); return `${hall ? hall.name : "Hall"} (${h.students_count})`; })
+    .join(", ");
+}
+function groupDates(bookingId, slots) {
+  const byDate = {};
+  slots.filter(s => s.booking_id === bookingId).forEach(s => (byDate[s.booking_date] = byDate[s.booking_date] || []).push(s.period_id));
+  return Object.keys(byDate).sort().map(d => `${fmtDate(d)} — Periods ${[...new Set(byDate[d])].sort((a,b)=>a-b).join(", ")}`).join("<br>");
+}
+
+function bookingRow(b, hallLines, dateLines) {
+  return `<div class="card" style="box-shadow:none; border-style:dashed;">
+    <div class="card-title"><span>${b.function_name}${b.is_emergency ? ' <span class="pill pill-altered">emergency</span>' : ''}</span><span class="pill pill-${b.status}">${b.status}</span></div>
+    <p style="font-size:13px;">${hallLines || "-"} · ${b.students_count} students · Requested by ${b.created_by_name}</p>
+    <p style="font-size:12.5px;">${dateLines}</p>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn btn-sm btn-primary" onclick="openBookingModal('${b.id}')">Manage</button>
+      ${b.status === 'approved' ? `<a class="btn btn-sm btn-ghost" href="print.html?id=${b.id}" target="_blank">Print sheet</a>` : ""}
+    </div>
+  </div>`;
+}
+
+// ---------- booking modal (approve / reject / edit / delete) ----------
+let currentBookingId = null;
+let bmShowEdit = false;
+async function openBookingModal(id) {
+  currentBookingId = id;
+  bmShowEdit = false;
+  document.getElementById("bmEditFields").style.display = "none";
+  const { data: b } = await supabaseClient.from("bookings").select("*").eq("id", id).single();
+  const { data: bhalls } = await supabaseClient.from("booking_halls").select("*").eq("booking_id", id);
+  const hallLines = (bhalls || []).map(h => HALLS.find(x => x.id === h.hall_id)?.name || "Hall").join(", ");
+
+  document.getElementById("bmTitle").textContent = b.function_name;
+  document.getElementById("bmSummary").innerHTML = `${b.department} · ${hallLines} · ${b.students_count} students · Requested by ${b.created_by_name}`;
+  document.getElementById("bm_status").value = b.status;
+  document.getElementById("bm_remarks").value = b.hod_remarks || "";
+
+  document.getElementById("bm_department").value = b.department || "";
+  document.getElementById("bm_function_name").value = b.function_name || "";
+  document.getElementById("bm_chief_guest").value = b.chief_guest || "";
+  document.getElementById("bm_booking_staff_mobile").value = b.booking_staff_mobile || "";
+  document.getElementById("bm_staff_incharge_name").value = b.staff_incharge_name || "";
+  document.getElementById("bm_staff_incharge_mobile").value = b.staff_incharge_mobile || "";
+  document.getElementById("bm_student_incharge_name").value = b.student_incharge_name || "";
+  document.getElementById("bm_student_incharge_mobile").value = b.student_incharge_mobile || "";
+  document.getElementById("bm_hostel_count").value = b.hostel_count ?? "";
+  document.getElementById("bm_dayscholar_count").value = b.dayscholar_count ?? "";
+  document.getElementById("bm_special_requirements").value = b.special_requirements || "";
+
+  document.getElementById("bookingModal").classList.add("show");
+}
+function closeBookingModal() {
+  document.getElementById("bookingModal").classList.remove("show");
+  currentBookingId = null;
+}
+document.getElementById("bmEditToggleBtn").addEventListener("click", () => {
+  bmShowEdit = !bmShowEdit;
+  document.getElementById("bmEditFields").style.display = bmShowEdit ? "block" : "none";
+});
+
+document.getElementById("bmSaveBtn").addEventListener("click", async () => {
+  const status = document.getElementById("bm_status").value;
+  const remarks = document.getElementById("bm_remarks").value.trim();
+  const update = { status, hod_remarks: remarks, updated_at: new Date().toISOString() };
+  if (status === "approved") update.approved_at = new Date().toISOString();
+
+  if (bmShowEdit) {
+    Object.assign(update, {
+      department: document.getElementById("bm_department").value.trim(),
+      function_name: document.getElementById("bm_function_name").value.trim(),
+      chief_guest: document.getElementById("bm_chief_guest").value.trim(),
+      booking_staff_mobile: document.getElementById("bm_booking_staff_mobile").value.trim(),
+      staff_incharge_name: document.getElementById("bm_staff_incharge_name").value.trim(),
+      staff_incharge_mobile: document.getElementById("bm_staff_incharge_mobile").value.trim(),
+      student_incharge_name: document.getElementById("bm_student_incharge_name").value.trim(),
+      student_incharge_mobile: document.getElementById("bm_student_incharge_mobile").value.trim(),
+      hostel_count: Number(document.getElementById("bm_hostel_count").value) || 0,
+      dayscholar_count: Number(document.getElementById("bm_dayscholar_count").value) || 0,
+      special_requirements: document.getElementById("bm_special_requirements").value.trim() || null
+    });
+  }
+
+  const { error } = await supabaseClient.from("bookings").update(update).eq("id", currentBookingId);
+  if (error) { toast("Could not save changes.", true); return; }
+  toast("Booking updated.");
+  closeBookingModal();
+  loadAllBookings();
+});
+
+document.getElementById("bmDeleteBtn").addEventListener("click", async () => {
+  if (!confirm("Delete this booking permanently? This can't be undone.")) return;
+  const { error } = await supabaseClient.from("bookings").delete().eq("id", currentBookingId);
+  if (error) { toast("Could not delete booking.", true); return; }
+  toast("Booking deleted.");
+  closeBookingModal();
+  loadAllBookings();
+});
+
+// ---------- halls management ----------
+async function loadHalls() {
+  const { data } = await supabaseClient.from("halls").select("*").order("sort_order");
+  HALLS = data || [];
+  document.getElementById("hallCards").innerHTML = (data || []).map(h => `
+    <div class="stat">
+      <div class="n" style="font-size:18px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        ${h.name} <span class="hall-status ${h.status}">${h.status}</span>
+      </div>
+      <div class="l">Capacity: ${h.capacity} · Code: ${h.code}</div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn btn-sm btn-ghost" onclick='openHallModal(${JSON.stringify(h).replace(/'/g, "&apos;")})'>Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteHall(${h.id})">Delete</button>
+      </div>
+    </div>
+  `).join("");
+}
+function openHallModal(hall) {
+  document.getElementById("hallModalError").style.display = "none";
+  if (hall && hall.id) {
+    document.getElementById("hallModalTitle").textContent = "Edit hall";
+    document.getElementById("h_id").value = hall.id;
+    document.getElementById("h_name").value = hall.name;
+    document.getElementById("h_code").value = hall.code;
+    document.getElementById("h_capacity").value = hall.capacity;
+    document.getElementById("h_status").value = hall.status || "active";
+  } else {
+    document.getElementById("hallModalTitle").textContent = "Add hall";
+    document.getElementById("h_id").value = "";
+    document.getElementById("h_name").value = "";
+    document.getElementById("h_code").value = "";
+    document.getElementById("h_capacity").value = "";
+    document.getElementById("h_status").value = "active";
+  }
+  document.getElementById("hallModal").classList.add("show");
+}
+function closeHallModal() { document.getElementById("hallModal").classList.remove("show"); }
+
+document.getElementById("hallSaveBtn").addEventListener("click", async () => {
+  const errEl = document.getElementById("hallModalError");
+  const id = document.getElementById("h_id").value;
+  const payload = {
+    name: document.getElementById("h_name").value.trim(),
+    code: document.getElementById("h_code").value.trim(),
+    capacity: Number(document.getElementById("h_capacity").value),
+    status: document.getElementById("h_status").value
+  };
+  if (!payload.name || !payload.code || !payload.capacity) {
+    errEl.textContent = "Fill in name, code, and capacity."; errEl.style.display = "block"; return;
+  }
+  let error;
+  if (id) {
+    ({ error } = await supabaseClient.from("halls").update(payload).eq("id", id));
+  } else {
+    const { data: maxRow } = await supabaseClient.from("halls").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
+    payload.sort_order = (maxRow?.sort_order || 0) + 1;
+    ({ error } = await supabaseClient.from("halls").insert(payload));
+  }
+  if (error) { errEl.textContent = error.message; errEl.style.display = "block"; return; }
+  toast(id ? "Hall updated." : "Hall added.");
+  closeHallModal();
+  loadHalls();
+});
+
+async function deleteHall(id) {
+  if (!confirm("Delete this hall? This only works if it has no bookings — otherwise disable it instead.")) return;
+  const { error } = await supabaseClient.from("halls").delete().eq("id", id);
+  if (error) { toast("Can't delete a hall that already has bookings — set it to Disabled instead.", true); return; }
+  toast("Hall deleted.");
+  loadHalls();
+}
+
+loadOverview();
+</script>
+</body>
+</html>
