@@ -1,0 +1,383 @@
+/* ============================================================
+   PARK Institutions — Seminar Hall Booking
+   Design tokens: purple, minimal, generous whitespace
+   ============================================================ */
+
+:root{
+  --purple-900:#2E1065;
+  --purple-700:#5B21B6;
+  --purple-600:#7C3AED;
+  --purple-500:#8B5CF6;
+  --purple-400:#A78BFA;
+  --purple-200:#DDD6FE;
+  --purple-100:#EDE9FE;
+  --purple-50:#F6F4FD;
+
+  --bg:#FAF9FC;
+  --surface:#FFFFFF;
+  --surface-muted:#F3F0FA;
+  --border:#E7E2F3;
+  --text:#1E1B2E;
+  --text-muted:#6B6478;
+  --text-faint:#9891A8;
+
+  --success:#15803D; --success-bg:#DCFCE7;
+  --danger:#DC2626;  --danger-bg:#FEE2E2;
+  --warning:#B45309; --warning-bg:#FEF3C7;
+  --info:#5B21B6;    --info-bg:#EDE9FE;
+
+  --radius-sm:8px;
+  --radius-md:14px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(46,16,101,0.06);
+  --shadow-md:0 8px 24px rgba(46,16,101,0.08);
+  --shadow-lg:0 20px 45px rgba(46,16,101,0.14);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',system-ui,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{
+  font-family:'Outfit',system-ui,sans-serif;
+  color:var(--purple-900);
+  margin:0 0 4px 0;
+  letter-spacing:-0.01em;
+}
+p{margin:0 0 8px 0;color:var(--text-muted);}
+a{color:var(--purple-600);}
+::selection{background:var(--purple-200);}
+
+/* ---------- layout shells ---------- */
+.auth-shell{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:
+    radial-gradient(circle at 15% 20%, var(--purple-100) 0%, transparent 45%),
+    radial-gradient(circle at 85% 80%, var(--purple-100) 0%, transparent 40%),
+    var(--bg);
+  padding:24px;
+}
+.app-shell{
+  display:grid;
+  grid-template-columns:250px 1fr;
+  min-height:100vh;
+}
+@media (max-width:860px){
+  .app-shell{grid-template-columns:1fr;}
+  .sidebar{position:sticky; top:0; z-index:20;}
+}
+
+.sidebar{
+  background:linear-gradient(180deg, var(--purple-900) 0%, #3B1279 100%);
+  color:#fff;
+  padding:28px 20px;
+  display:flex;
+  flex-direction:column;
+  gap:28px;
+}
+.sidebar .brand{display:flex; flex-direction:column; gap:2px;}
+.sidebar .brand .mark{
+  width:38px;height:38px;border-radius:10px;
+  background:rgba(255,255,255,0.14);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Outfit',sans-serif;font-weight:600;font-size:16px;
+  margin-bottom:8px;
+}
+.sidebar .brand h1{color:#fff; font-size:17px; margin:0;}
+.sidebar .brand span{color:rgba(255,255,255,0.6); font-size:12.5px;}
+.sidebar nav{display:flex; flex-direction:column; gap:4px;}
+.sidebar nav a, .sidebar nav button{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border-radius:10px;
+  color:rgba(255,255,255,0.78);
+  text-decoration:none; font-size:14px; font-weight:500;
+  background:none; border:none; cursor:pointer; text-align:left;
+  font-family:inherit;
+}
+.sidebar nav a:hover, .sidebar nav button:hover{background:rgba(255,255,255,0.09); color:#fff;}
+.sidebar nav a.active{background:rgba(255,255,255,0.16); color:#fff;}
+.sidebar .who{
+  margin-top:auto;
+  padding-top:16px;
+  border-top:1px solid rgba(255,255,255,0.14);
+  font-size:13px; color:rgba(255,255,255,0.65);
+}
+.sidebar .who strong{display:block; color:#fff; font-size:14px; font-weight:600;}
+
+.main{padding:32px 36px; max-width:1180px;}
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:26px; gap:16px; flex-wrap:wrap;
+}
+.topbar h1{font-size:22px;}
+.topbar p{margin:0; font-size:13.5px;}
+
+/* ---------- cards ---------- */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:26px;
+  box-shadow:var(--shadow-sm);
+}
+.card + .card{margin-top:20px;}
+.card-title{
+  font-family:'Outfit',sans-serif; font-weight:600; font-size:16px;
+  color:var(--purple-900); margin-bottom:14px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+}
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+.grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+@media(max-width:700px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+.stat{
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-md); padding:18px 20px;
+}
+.stat .n{font-family:'Outfit',sans-serif; font-size:28px; font-weight:600; color:var(--purple-700);}
+.stat .l{font-size:12.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+
+/* ---------- forms ---------- */
+label{
+  display:block; font-size:13px; font-weight:600;
+  color:var(--text); margin-bottom:6px;
+}
+.field{margin-bottom:16px;}
+.field small{display:block; color:var(--text-faint); font-size:12px; margin-top:4px;}
+input[type=text], input[type=password], input[type=tel], input[type=number],
+input[type=date], select, textarea{
+  width:100%; padding:11px 13px;
+  border:1.5px solid var(--border); border-radius:var(--radius-sm);
+  background:var(--surface); color:var(--text);
+  font-family:inherit; font-size:14px;
+  transition:border-color .15s, box-shadow .15s;
+}
+textarea{resize:vertical; min-height:70px;}
+input:focus, select:focus, textarea:focus{
+  outline:none; border-color:var(--purple-500);
+  box-shadow:0 0 0 3px var(--purple-100);
+}
+.help-error{color:var(--danger); font-size:12.5px; margin-top:6px; display:none;}
+
+/* ---------- buttons ---------- */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:11px 20px; border-radius:10px; border:none;
+  font-family:'Outfit',sans-serif; font-weight:600; font-size:14px;
+  cursor:pointer; transition:transform .1s, box-shadow .15s, background .15s;
+}
+.btn:active{transform:scale(0.98);}
+.btn-primary{background:var(--purple-600); color:#fff; box-shadow:var(--shadow-sm);}
+.btn-primary:hover{background:var(--purple-700);}
+.btn-ghost{background:var(--surface-muted); color:var(--purple-700);}
+.btn-ghost:hover{background:var(--purple-100);}
+.btn-danger{background:var(--danger-bg); color:var(--danger);}
+.btn-danger:hover{background:#FCA5A5;}
+.btn-success{background:var(--success-bg); color:var(--success);}
+.btn-success:hover{background:#86EFAC;}
+.btn-sm{padding:7px 14px; font-size:13px; border-radius:8px;}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+.btn-block{width:100%;}
+
+/* ---------- login card ---------- */
+.login-card{
+  width:100%; max-width:380px; background:var(--surface);
+  border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
+  padding:36px 32px; border:1px solid var(--border);
+}
+.login-card .mark{
+  width:46px;height:46px;border-radius:12px;
+  background:linear-gradient(135deg, var(--purple-600), var(--purple-900));
+  display:flex;align-items:center;justify-content:center;
+  color:#fff; font-family:'Outfit',sans-serif; font-weight:700; font-size:18px;
+  margin-bottom:16px;
+}
+.login-card h1{font-size:20px; margin-bottom:2px;}
+.login-card p.sub{font-size:13.5px; margin-bottom:24px;}
+.role-tabs{display:flex; gap:6px; margin-bottom:20px; background:var(--surface-muted); padding:4px; border-radius:10px;}
+.role-tabs button{
+  flex:1; border:none; background:none; padding:8px 6px; border-radius:8px;
+  font-family:'Outfit',sans-serif; font-weight:600; font-size:12.5px;
+  color:var(--text-muted); cursor:pointer;
+}
+.role-tabs button.active{background:#fff; color:var(--purple-700); box-shadow:var(--shadow-sm);}
+
+/* ---------- status pills ---------- */
+.pill{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 11px; border-radius:99px; font-size:12px; font-weight:600;
+  text-transform:capitalize;
+}
+.pill-pending{background:var(--warning-bg); color:var(--warning);}
+.pill-approved{background:var(--success-bg); color:var(--success);}
+.pill-rejected{background:var(--danger-bg); color:var(--danger);}
+.pill-altered{background:var(--info-bg); color:var(--info);}
+.pill-cancelled{background:#F1F0F4; color:var(--text-faint);}
+.pill::before{content:''; width:6px; height:6px; border-radius:50%; background:currentColor;}
+
+/* ---------- table ---------- */
+.table-wrap{overflow-x:auto;}
+table{width:100%; border-collapse:collapse; font-size:13.5px;}
+th{
+  text-align:left; padding:10px 12px; color:var(--text-faint);
+  font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
+  border-bottom:1.5px solid var(--border);
+}
+td{padding:13px 12px; border-bottom:1px solid var(--border); vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--purple-50);}
+
+/* ---------- period picker ---------- */
+.day-block{
+  border:1.5px solid var(--border); border-radius:var(--radius-md);
+  padding:14px 16px; margin-bottom:12px; background:var(--surface-muted);
+}
+.day-block .day-head{
+  display:flex; align-items:center; justify-content:between; gap:10px; margin-bottom:10px;
+}
+.periods-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px;}
+.period-chip{
+  display:flex; align-items:center; gap:8px;
+  border:1.5px solid var(--border); border-radius:9px;
+  padding:9px 10px; background:#fff; cursor:pointer; font-size:12.5px;
+  transition:border-color .15s, background .15s;
+}
+.period-chip input{accent-color:var(--purple-600); margin:0;}
+.period-chip.checked{border-color:var(--purple-500); background:var(--purple-50);}
+.period-chip.taken{opacity:.5; cursor:not-allowed; background:#F5F5F5;}
+.period-chip .lbl{display:flex; flex-direction:column; line-height:1.25;}
+.period-chip .lbl b{font-size:12.5px;}
+.period-chip .lbl span{font-size:10.5px; color:var(--text-faint);}
+
+/* ---------- misc ---------- */
+.badge-count{
+  background:var(--purple-100); color:var(--purple-700);
+  border-radius:99px; padding:1px 9px; font-size:11.5px; font-weight:700;
+}
+.empty{
+  text-align:center; padding:48px 20px; color:var(--text-faint);
+}
+.divider{height:1px; background:var(--border); margin:20px 0;}
+.toast{
+  position:fixed; bottom:24px; right:24px; z-index:200;
+  background:var(--purple-900); color:#fff; padding:13px 18px;
+  border-radius:12px; font-size:13.5px; box-shadow:var(--shadow-lg);
+  display:none; max-width:320px;
+}
+.toast.show{display:block; animation:toastin .2s ease;}
+.toast.error{background:#7F1D1D;}
+@keyframes toastin{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+.modal-backdrop{
+  position:fixed; inset:0; background:rgba(30,27,46,0.45);
+  display:none; align-items:center; justify-content:center; z-index:150; padding:20px;
+}
+.modal-backdrop.show{display:flex;}
+.modal{
+  background:#fff; border-radius:var(--radius-lg); padding:26px;
+  width:100%; max-width:460px; box-shadow:var(--shadow-lg); max-height:88vh; overflow-y:auto;
+}
+
+/* ---------- print sheet ---------- */
+@media print{
+  body{background:#fff;}
+  .no-print{display:none !important;}
+  .print-sheet{box-shadow:none; border:none; padding:0; margin:0;}
+}
+.print-sheet{
+  background:#fff; max-width:800px; margin:0 auto; padding:40px;
+  font-family:'Inter',sans-serif; color:#111;
+}
+.print-sheet h2{font-size:18px; text-align:center; margin-bottom:2px;}
+.print-sheet .sub{text-align:center; font-size:12.5px; color:#555; margin-bottom:18px;}
+.print-sheet table.info td{border:1px solid #ccc; padding:7px 10px; font-size:12.5px;}
+.sign-grid{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:26px 18px; margin-top:36px;
+}
+.sign-box{border-top:1px solid #333; padding-top:6px; font-size:11.5px; text-align:center; color:#333;}
+
+/* ============================================================
+   MOBILE RESPONSIVE — phones & small tablets
+   ============================================================ */
+@media (max-width: 640px){
+  body{font-size:14px;}
+
+  /* app layout becomes a single column with a top nav bar */
+  .app-shell{grid-template-columns:1fr;}
+  .sidebar{
+    flex-direction:row; flex-wrap:wrap; align-items:center;
+    padding:14px 16px; gap:10px; position:sticky; top:0; z-index:30;
+  }
+  .sidebar .brand{flex-direction:row; align-items:center; gap:8px;}
+  .sidebar .brand .mark{width:30px; height:30px; margin-bottom:0; font-size:13px;}
+  .sidebar .brand h1{font-size:14px;}
+  .sidebar .brand span{display:none;}
+  .sidebar nav{
+    flex-direction:row; flex-wrap:wrap; width:100%; gap:6px;
+    order:3; margin-top:6px;
+  }
+  .sidebar nav a, .sidebar nav button{
+    padding:8px 10px; font-size:12.5px; flex:1 1 auto; text-align:center; white-space:nowrap;
+  }
+  .sidebar .who{display:none;}
+
+  .main{padding:16px 14px;}
+  .topbar{flex-direction:column; align-items:flex-start; gap:10px;}
+  .topbar h1{font-size:19px;}
+  .card{padding:18px 16px; border-radius:14px;}
+  .grid-2, .grid-3{grid-template-columns:1fr; gap:12px;}
+
+  /* auth / login card */
+  .login-card{padding:26px 20px; max-width:100%;}
+
+  /* forms — full-width, big touch targets, no zoom-triggering small text */
+  input[type=text], input[type=password], input[type=tel], input[type=number],
+  input[type=date], select, textarea{
+    padding:12px 14px; font-size:16px; /* 16px prevents iOS auto-zoom on focus */
+  }
+  label{font-size:12.5px;}
+  .btn{width:100%; padding:13px 18px; font-size:15px;}
+  .btn-sm{width:auto; padding:9px 14px;}
+  .role-tabs{flex-wrap:wrap;}
+  .role-tabs button{flex:1 1 45%; padding:10px 6px; font-size:12px;}
+
+  /* period / hall checkbox grids stack cleanly and stay tappable */
+  .periods-grid{grid-template-columns:repeat(2, 1fr);}
+  .period-chip{padding:11px 10px;}
+  .hall-check-grid{grid-template-columns:1fr;}
+  .day-block{padding:12px;}
+
+  /* tables become horizontally scrollable "cards" instead of overflowing the page */
+  .table-wrap{
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    border:1px solid var(--border); border-radius:var(--radius-md);
+  }
+  table{min-width:560px;}
+  th, td{padding:10px 10px; font-size:12.5px;}
+
+  /* modals fit small screens without overflowing */
+  .modal-backdrop{padding:12px; align-items:flex-end;}
+  .modal{max-width:100%; width:100%; border-radius:20px 20px 0 0; max-height:92vh;}
+
+  .stat{padding:14px 16px;}
+  .stat .n{font-size:22px;}
+
+  .toast{left:14px; right:14px; bottom:14px; max-width:none;}
+
+  /* print sheet still needs to render sanely if viewed on a phone before printing */
+  .print-sheet{padding:20px;}
+  .sign-grid{grid-template-columns:repeat(2, 1fr); gap:18px 12px;}
+}
+
+@media (max-width: 380px){
+  .sign-grid{grid-template-columns:1fr;}
+  .role-tabs button{flex:1 1 100%;}
+}
