@@ -29,7 +29,7 @@
     cursor:pointer; color:var(--text-muted);
   }
   .yn-toggle button.active-yes{background:var(--success-bg); color:var(--success); border-color:var(--success);}
-  .yn-toggle button.active-no{background:var(--surface-muted); color:var(--text); border-color:var(--purple-400);}
+  .yn-toggle button.active-no{background:var(--success-bg); color:var(--success); border-color:var(--success);}
   .sub-fields{display:none; border-top:1px dashed var(--border); padding-top:12px; margin-top:4px;}
   .sub-fields.show{display:block;}
   .field-error{display:none;}
@@ -78,13 +78,22 @@
               <input type="text" id="function_name" required placeholder="e.g. Guest Lecture on AI 2026">
             </div>
             <div class="field">
-              <label>Chief guest (if any)</label>
-              <input type="text" id="chief_guest" placeholder="Name & designation">
+              <label>Staff name</label>
+              <input type="text" id="staff_name" readonly>
+              <small>Set from your login and can't be changed here.</small>
             </div>
             <div class="field">
               <label>Your mobile number</label>
               <input type="tel" id="booking_staff_mobile" required placeholder="10-digit mobile" maxlength="10">
             </div>
+          </div>
+
+          <div class="field">
+            <label>Chief guest (if any)</label>
+            <input type="text" id="chief_guest" placeholder="Name & designation">
+          </div>
+
+          <div class="grid-2">
             <div class="field">
               <label>Staff incharge — name</label>
               <input type="text" id="staff_incharge_name" required>
@@ -151,14 +160,14 @@
             <div class="field">
               <label>Food required?</label>
               <div class="yn-toggle" id="foodToggle">
-                <button type="button" data-val="no" class="active-no">No</button>
+                <button type="button" data-val="no">No</button>
                 <button type="button" data-val="yes">Yes</button>
               </div>
             </div>
             <div class="field">
               <label>Snacks / refreshment required?</label>
               <div class="yn-toggle" id="snacksToggle">
-                <button type="button" data-val="no" class="active-no">No</button>
+                <button type="button" data-val="no">No</button>
                 <button type="button" data-val="yes">Yes</button>
               </div>
             </div>
@@ -170,7 +179,7 @@
           <div class="field">
             <label>Any other faculty required?</label>
             <div class="yn-toggle" id="facultyToggle">
-              <button type="button" data-val="no" class="active-no">No</button>
+              <button type="button" data-val="no">No</button>
               <button type="button" data-val="yes">Yes</button>
             </div>
             <div class="sub-fields" id="facultySubFields">
@@ -219,6 +228,7 @@ if (me) {
   document.getElementById("whoName").textContent = me.name;
   document.getElementById("whoDept").textContent = me.department || "";
   document.getElementById("department").value = me.department || "General";
+  document.getElementById("staff_name").value = me.name || me.username || "";
 }
 
 document.querySelectorAll(".tab-link").forEach(link => {
@@ -458,6 +468,13 @@ function validateForm() {
     check("hostel_girls", boysN + girlsN === hostel, `Boys + Girls should add up to the hostellers count (${hostel}).`);
   }
 
+  if (toggleIsYes("facultyToggle")) {
+    const details = document.getElementById("other_faculty_details").value.trim();
+    check("other_faculty_details", details.length > 0, "Please enter the faculty details, since you selected Yes.");
+  } else {
+    setFieldError(document.getElementById("other_faculty_details"), null);
+  }
+
   return ok;
 }
 
@@ -543,6 +560,7 @@ document.getElementById("bookingForm").addEventListener("submit", async (e) => {
     toast("Booking submitted! Your HoD will review it next.");
     document.getElementById("bookingForm").reset();
     document.getElementById("department").value = me.department || "General";
+    document.getElementById("staff_name").value = me.name || me.username || "";
     document.querySelectorAll(".hall-cb").forEach(cb => cb.closest(".hall-check").classList.remove("checked"));
     document.getElementById("hallStudentBoxes").innerHTML = "";
     document.getElementById("total_students_display").value = "";
